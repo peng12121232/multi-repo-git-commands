@@ -52,6 +52,7 @@ pids/
 
 # Extension files
 *.vsix
+release/
 esbuild.metafile.json
 
 # OS

@@ -149,7 +149,7 @@ export function activate(context: vscode.ExtensionContext) {
   async function runGitOperation(
     operationName: string,
     repos: RepoInfo[] | undefined,
-    action: (git: SimpleGit, repoName: string) => Promise<any>,
+    action: (git: SimpleGit, repoName: string, repo: RepoInfo) => Promise<any>,
   ) {
     let repoList = repos;
     repoList ??= await getAllRepos();
@@ -180,7 +180,7 @@ export function activate(context: vscode.ExtensionContext) {
 
           try {
             const git = simpleGit(repo.path);
-            await action(git, repoName);
+            await action(git, repoName, repo);
             successCount++;
             output.appendLine(`✅ ${operationName} completed successfully`);
           } catch (e: any) {
@@ -400,6 +400,119 @@ export function activate(context: vscode.ExtensionContext) {
     await runGitOperation(`Checkout ${pick}`, targetRepos, async (git) => {
       await git.checkout(pick);
       output.appendLine(`Checked out ${pick}.`);
+    });
+  };
+
+  const runMerge = async (repos?: RepoInfo[]) => {
+    const targetRepos = repos ?? await getAllRepos();
+    if (targetRepos.length === 0) {
+      vscode.window.showWarningMessage("No Git repositories found.");
+      return;
+    }
+
+    // Keep the concrete ref for each repository. Prefer origin, then another
+    // remote, and only fall back to a local branch when no remote ref exists.
+    const branchRepos = new Map<string, Map<string, string>>();
+    const currentBranchRepos = new Map<string, RepoInfo[]>();
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "Fetching branches available to merge...",
+        cancellable: false,
+      },
+      async () => {
+        await Promise.all(targetRepos.map(async (repo) => {
+          try {
+            const branches = await simpleGit(repo.path).branch(["-a"]);
+            if (branches.current) {
+              const reposOnBranch = currentBranchRepos.get(branches.current) ?? [];
+              reposOnBranch.push(repo);
+              currentBranchRepos.set(branches.current, reposOnBranch);
+            }
+            const refsForRepo = new Map<string, { ref: string; priority: number }>();
+            for (const rawBranch of branches.all) {
+              if (rawBranch.includes("/HEAD -> ")) {continue;}
+
+              const isRemote = rawBranch.startsWith("remotes/");
+              const parts = rawBranch.split("/");
+              const name = isRemote && parts.length > 2
+                ? parts.slice(2).join("/")
+                : rawBranch;
+              const mergeRef = isRemote ? parts.slice(1).join("/") : rawBranch;
+              const priority = mergeRef.startsWith("origin/") ? 2 : isRemote ? 1 : 0;
+              const existing = refsForRepo.get(name);
+              if (!existing || priority > existing.priority) {
+                refsForRepo.set(name, { ref: mergeRef, priority });
+              }
+            }
+
+            for (const [name, selected] of refsForRepo) {
+              const reposForBranch = branchRepos.get(name) ?? new Map<string, string>();
+              reposForBranch.set(repo.path, selected.ref);
+              branchRepos.set(name, reposForBranch);
+            }
+          } catch (e: any) {
+            output.appendLine(`Failed to inspect branches in ${repo.name}: ${e.message || e}`);
+          }
+        }));
+      },
+    );
+
+    const currentBranchItems = Array.from(currentBranchRepos.entries())
+      .map(([label, branchTargetRepos]) => ({
+        label,
+        description: `${branchTargetRepos.length} repo(s)`,
+        detail: branchTargetRepos.map(repo => repo.name).sort().join(", "),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    if (currentBranchItems.length === 0) {
+      vscode.window.showWarningMessage("No current branches available for merge.");
+      return;
+    }
+
+    const currentBranchPick = await vscode.window.showQuickPick(currentBranchItems, {
+      title: "Batch Merge: 1/2 Select current branch",
+      placeHolder: "Only repositories currently on this branch will be merged",
+      matchOnDescription: true,
+      matchOnDetail: true,
+    });
+    if (!currentBranchPick) {return;}
+
+    const eligibleRepos = currentBranchRepos.get(currentBranchPick.label)!;
+    const eligiblePaths = new Set(eligibleRepos.map(repo => repo.path));
+    const branchItems = Array.from(branchRepos.entries())
+      .map(([label, repoRefs]) => {
+        const matchingPaths = Array.from(repoRefs.keys()).filter(repoPath => eligiblePaths.has(repoPath));
+        return {
+          label,
+          description: `${matchingPaths.length} repo(s)`,
+          detail: matchingPaths.map(repoPath => path.basename(repoPath)).sort().join(", "),
+        };
+      })
+      .filter(item => item.detail.length > 0)
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    if (branchItems.length === 0) {
+      vscode.window.showWarningMessage("No branches available to merge.");
+      return;
+    }
+
+    const pick = await vscode.window.showQuickPick(branchItems, {
+      title: `Batch Merge: 2/2 Merge into ${currentBranchPick.label}`,
+      placeHolder: "Select branch to merge (type to filter)",
+      matchOnDescription: true,
+      matchOnDetail: true,
+    });
+    if (!pick) {return;}
+
+    const repoRefs = branchRepos.get(pick.label)!;
+    const selectedRepos = eligibleRepos.filter(repo => repoRefs.has(repo.path));
+    await runGitOperation(`Merge ${pick.label}`, selectedRepos, async (git, _repoName, repo) => {
+      const mergeRef = repoRefs.get(repo.path);
+      if (!mergeRef) {throw new Error(`Branch ${pick.label} is not available`);}
+      await git.merge(["--no-edit", mergeRef]);
+      output.appendLine(`Merged ${mergeRef}.`);
     });
   };
 
@@ -627,6 +740,7 @@ export function activate(context: vscode.ExtensionContext) {
     "multi-repo-git-commands.stashAll": () => runStash(),
     "multi-repo-git-commands.popStashAll": () => runPopStash(),
     "multi-repo-git-commands.checkoutAll": () => runCheckout(),
+    "multi-repo-git-commands.mergeAll": () => runMerge(),
     "multi-repo-git-commands.createBranchAll": () => runCreateBranch(),
     "multi-repo-git-commands.deleteBranchAll": () => runDeleteBranch(),
     "multi-repo-git-commands.createTagAll": () => runCreateTag(),

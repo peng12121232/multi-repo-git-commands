@@ -137,6 +137,11 @@
         "category": "Git (Multi-Repo)"
       },
       {
+        "command": "multi-repo-git-commands.mergeAll",
+        "title": "Multi-Repo Git: Merge Branch (All)",
+        "category": "Git (Multi-Repo)"
+      },
+      {
         "command": "multi-repo-git-commands.createBranchAll",
         "title": "Multi-Repo Git: Create Branch (All)",
         "category": "Git (Multi-Repo)"
@@ -268,6 +273,9 @@
         },
         {
           "command": "multi-repo-git-commands.checkoutAll"
+        },
+        {
+          "command": "multi-repo-git-commands.mergeAll"
         }
       ],
       "mrg:tags": [
@@ -346,6 +354,9 @@
         },
         {
           "command": "multi-repo-git-commands.checkoutAll"
+        },
+        {
+          "command": "multi-repo-git-commands.mergeAll"
         },
         {
           "command": "multi-repo-git-commands.createBranchAll"

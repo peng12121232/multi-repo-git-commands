@@ -232,7 +232,7 @@ suite("Validators", () => {
 suite("Command Registry", () => {
   test("COMMANDS array is populated", () => {
     assert.ok(COMMANDS.length > 0, "COMMANDS should not be empty");
-    assert.strictEqual(COMMANDS.length, 22, "Should have 22 commands");
+    assert.strictEqual(COMMANDS.length, 23, "Should have 23 commands");
   });
 
   test("all commands have required properties", () => {
@@ -257,7 +257,7 @@ suite("Command Registry", () => {
 
   test("getAllCommandIds returns all command ids", () => {
     const ids = getAllCommandIds();
-    assert.strictEqual(ids.length, 22, "Should return all 22 command ids");
+    assert.strictEqual(ids.length, 23, "Should return all 23 command ids");
     assert.ok(
       ids.includes("multi-repo-git-commands.statusAll"),
       "Should include statusAll command"

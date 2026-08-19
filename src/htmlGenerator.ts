@@ -185,6 +185,10 @@ export class HtmlGenerator {
                           <i class="codicon codicon-git-branch"></i>
                           <span class="btn-label">Switch</span>
                         </button>
+                        <button class="icon-btn" title="Merge Branch" data-command="multi-repo-git-commands.mergeAll">
+                          <i class="codicon codicon-git-merge"></i>
+                          <span class="btn-label">Merge</span>
+                        </button>
                         <button class="icon-btn" title="Stage All" data-command="multi-repo-git-commands.stageAll">
                           <i class="codicon codicon-diff-added"></i>
                           <span class="btn-label">Stage</span>

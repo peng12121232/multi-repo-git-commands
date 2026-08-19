@@ -38,6 +38,7 @@ Available from the Command Palette (`Cmd+Shift+P`) or the Dashboard:
 - **Push All**: Push to remote
 - **Commit All**: Commit changes
 - **Switch Branch**: Interactive picker to switch all repos to a specific branch
+- **Merge Branch**: Filter and select a branch, then merge it in every repository where it exists
 - **Stage/Unstage/Discard All**: Manage changes
 - **Stash/Pop Stash All**: Manage stashes
 - **Run Custom Command**: Enter any Git arguments to run on all repos
@@ -74,4 +75,3 @@ Configure under **Settings → Extensions → Multi Repo Git Commands**:
 
 ### 0.0.1
 - Initial release.
-

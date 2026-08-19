@@ -93,6 +93,12 @@ export const COMMANDS: CommandDefinition[] = [
     handler: async () => {},
   },
   {
+    id: "multi-repo-git-commands.mergeAll",
+    label: "Merge Branch",
+    description: "Merge a selected branch in every repository where it exists",
+    handler: async () => {},
+  },
+  {
     id: "multi-repo-git-commands.createBranchAll",
     label: "Create Branch",
     description: "Create a new branch in all repositories",
